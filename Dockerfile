@@ -1,7 +1,8 @@
 FROM i386/alpine:latest 
 #debian:i386
 MAINTAINER Ferro Software
-RUN apk update && apk add wine
+RUN apk update
+RUN apk add wine
 RUN cd /tmp && wget www.ferrobackup.com/download/FbsDockerInst.zip
 RUN unzip FbsDockerInst.zip -d / && rm FbsDockerInst.zip
 #RUN apt-get update && apt-get install -y wine
