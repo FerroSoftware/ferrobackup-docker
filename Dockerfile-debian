@@ -9,4 +9,5 @@ RUN cd /tmp && wget www.ferrobackup.com/download/FbsDockerInst.zip \
  && rm FbsDockerInst.zip
 ENV DISPLAY :0
 EXPOSE 4530 4531
-CMD wine /fbs/FBSServer.exe -standalone
+#CMD wine /fbs/FBSServer.exe -standalone
+ENTRYPOINT ["wine", "/fbs/FBSServer.exe", "-standalone"]
