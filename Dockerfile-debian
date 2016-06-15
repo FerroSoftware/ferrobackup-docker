@@ -6,7 +6,7 @@ RUN dpkg --add-architecture i386 \
 RUN apt-get install -y wget
 RUN cd /tmp && wget www.ferrobackup.com/download/FbsDockerInst.tgz \
  && tar xvzf FbsDockerInst.tgz -C / \
- && rm FbsDockerInst.zip
+ && rm FbsDockerInst.tgz
 ENV DISPLAY :0
 EXPOSE 4530 4531
 #CMD wine /fbs/FBSServer.exe -standalone
