@@ -3,12 +3,10 @@ FROM i386/alpine:latest
 MAINTAINER Ferro Software
 RUN apk update
 RUN apk add wine
-RUN cd /tmp && wget www.ferrobackup.com/download/FbsDockerInst.zip
-RUN unzip FbsDockerInst.zip -d / && rm FbsDockerInst.zip
-#RUN apt-get update && apt-get install -y wine
-# dpkg --add-architecture i386 &&  
+RUN cd /tmp && wget www.ferrobackup.com/download/FbsDockerInst.tgz \
+ && tar xvzf FbsDockerInst.tgz -C / \
+ && rm FbsDockerInst.tgz
 ENV DISPLAY :0
-#COPY . /FBS/
-
 EXPOSE 4530 4531
-CMD wine /fbs/FBSServer.exe -standalone
+#CMD wine /fbs/FBSServer.exe -standalone
+ENTRYPOINT ["wineconsole", "/fbs/FBSServer.exe", "-standalone"]
