@@ -19,24 +19,35 @@ function startX() {
 }
 
 function isHttpServerAlive() {
-  wget --retry-connrefused --no-http-keep-alive --spider -q --tries 5 -T 3 http://127.0.0.1:4530 && HTTPSERVERALIVE=true || HTTPSERVERALIVE=false
+  PREVHTTPSERVERALIVE=$HTTPSERVERALIVE
+  wget --retry-connrefused -q --tries 5 -T 6 http://127.0.0.1:4530/null && HTTPSERVERALIVE=true || HTTPSERVERALIVE=false
 }
 
 function isServerProcessAlive() {
   pgrep "FBSServer.exe" > /dev/null && SERVERPROCESSALIVE=true || SERVERPROCESSALIVE=false
 }
 
+function isAutoupdateInProgress() {
+  pgrep -f "AUTOUPDATE" > /dev/null && AUTOUPDATE=true || AUTOUPDATE=false
+}
+
 function watchdog() {
   if [ "$ISSERVER" = true ] ; then 
     isServerProcessAlive
     if [ "$SERVERPROCESSALIVE" = false ] ; then
-      echo "FBSServer.exe proccess has been terminated. Restarting $COMPONENTS..."
-      wine $APPPATH/FBSServer.exe -start
+      isAutoupdateInProgress
+      if [ "$AUTOUPDATE" = false ] ; then
+        echo "FBSServer.exe proccess has been terminated. Restarting FBS Server service..."
+        wine $APPPATH/FBSServer.exe -start
+      fi  
     else
       isHttpServerAlive
-      if [ "$HTTPSERVERALIVE" = false ] ; then
-        echo "HTTP server is not responding. Stopping $COMPONENTS..."
-        wine $APPPATH/FBSServer.exe -stop
+      if [ "$HTTPSERVERALIVE" = false ] && [ "$PREVHTTPSERVERALIVE" = true ] ; then
+        isAutoupdateInProgress
+        if [ "$AUTOUPDATE" = false ] ; then
+          echo "HTTP server is not responding. Stopping FBS Server service..."
+          wine $APPPATH/FBSServer.exe -stop
+        fi  
       fi
     fi
   fi
@@ -61,6 +72,7 @@ function install() {
 COMPONENTS=${1:-"FBS_Server,FBS_Worker"}
 INSTFILE="Fbs5InstDocker.exe"
 APPPATH="/fbs/app"
+PREVHTTPSERVERALIVE=false
 
 if echo "$COMPONENTS" | grep -q "FBS_Server"; then
   ISSERVER=true
