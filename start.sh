@@ -20,7 +20,7 @@ function startX() {
 
 function isHttpServerAlive() {
   PREVHTTPSERVERALIVE=$HTTPSERVERALIVE
-  wget --retry-connrefused -q --tries 20 -T 5 http://127.0.0.1:4530/null && HTTPSERVERALIVE=true || HTTPSERVERALIVE=false
+  wget --retry-connrefused --spider -q --tries 20 -T 5 http://127.0.0.1:4530/null && HTTPSERVERALIVE=true || HTTPSERVERALIVE=false
 }
 
 function isServerProcessAlive() {
