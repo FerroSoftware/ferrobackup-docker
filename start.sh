@@ -1,17 +1,21 @@
 #!/bin/bash
 trap finalize SIGTERM
 
+function log() {
+  echo -e "\n#" $(date --iso-8601=seconds) "   $1"
+}
+
 function finalize() {
-  echo "Shutting down FBS ($COMPONENTS)..."
+  log "Shutting down FBS ($COMPONENTS)..."
   if [ "$ISSERVER" = true ] ; then 
     wine $APPPATH/FBSServer.exe -stop
   fi 
-  echo "Done."
+  log "Done."
   exit
 }
 
 function startX() {
-  echo "Starting Xvfb..."
+  log "Starting Xvfb..."
   rm -f /tmp/.X0-lock
   Xvfb :0 -screen 0 1024x768x16 &
   sleep 2
@@ -24,6 +28,7 @@ function isHttpServerAlive() {
 }
 
 function isServerProcessAlive() {
+  PREVSERVERPROCESSALIVE=$SERVERPROCESSALIVE
   pgrep "FBSServer.exe" > /dev/null && SERVERPROCESSALIVE=true || SERVERPROCESSALIVE=false
 }
 
@@ -34,10 +39,10 @@ function isAutoupdateInProgress() {
 function watchdog() {
   if [ "$ISSERVER" = true ] ; then 
     isServerProcessAlive
-    if [ "$SERVERPROCESSALIVE" = false ] ; then
+    if [ "$SERVERPROCESSALIVE" = false ] && [ "$PREVSERVERPROCESSALIVE" = true ] ; then
       isAutoupdateInProgress
       if [ "$AUTOUPDATE" = false ] ; then
-        echo "FBSServer.exe proccess has been terminated. Restarting FBS Server service..."
+        log "FBSServer.exe proccess has been terminated. Restarting FBS Server service..."
         wine $APPPATH/FBSServer.exe -start
       fi  
     else
@@ -45,7 +50,7 @@ function watchdog() {
       if [ "$HTTPSERVERALIVE" = false ] && [ "$PREVHTTPSERVERALIVE" = true ] ; then
         isAutoupdateInProgress
         if [ "$AUTOUPDATE" = false ] ; then
-          echo "HTTP server is not responding. Stopping FBS Server service..."
+          log "HTTP server is not responding. Stopping FBS Server service..."
           wine $APPPATH/FBSServer.exe -stop
         fi  
       fi
@@ -55,17 +60,41 @@ function watchdog() {
 }
 
 function install() {
-  echo "Installation..."
+  if [ -d $APPPATH ]; then
+    UPDATE=true
+    INSTTEXT="Update"
+  else
+    UPDATE=false
+    INSTTEXT="Installation"
+  fi    
+   
 
-  echo "Downloading installer..."
+  log "$INSTTEXT..."
+  
+  chmod -R 777 /fbs
+  if [ ! $? -eq 0 ];then
+     log "Access denied."
+     exit 1
+  fi
+  
+
+  log "Downloading installer..."
   cd /tmp && wget www.ferrobackup.com/download/Fbs5InstDocker.exe
-  echo "Initializing Wine..."
-  wine ipconfig
+  log "Initializing Wine..."
+  WINEDEBUG=-all wine ipconfig > /dev/null
   startX
-  echo "Installing FBS ($COMPONENTS)..."
-  wine /tmp/$INSTFILE /SP- /verysilent /noicons /LOG /COMPONENTS="$COMPONENTS" /dir="Z:$APPPATH"
+  log "FBS ($COMPONENTS) - $INSTTEXT..."
+  rm -f -v /tmp/setup.log
+  wine /tmp/$INSTFILE /SP- /verysilent /noicons /SUPPRESSMSGBOXES /LOG="Z:\tmp\setup.log" /COMPONENTS="$COMPONENTS" /dir="Z:$APPPATH"
 
-  echo "Installation complete"
+  INSTOUT=$?
+  if [ ! $INSTOUT -eq 0 ];then
+     log "Setup failed to initialize. Error: $INSTOUT"
+     cat /tmp/setup.log
+     exit 1
+  fi
+
+  log "$INSTTEXT completed"
 }
 
 
@@ -81,7 +110,11 @@ else
 fi
 
 
-echo "Starting..."
+log "################################"
+log "##### Ferro Backup System ######"
+log "################################"
+
+log "Starting..."
 
 
 if [ ! -f /tmp/$INSTFILE ] 
@@ -92,15 +125,24 @@ else
 fi
 
 
-echo "Starting NT services ($COMPONENTS)..."
+log "Starting NT services ($COMPONENTS)..."
+
+
+export LC_ALL=pl_PL.UTF-8
+export LANG=pl_PL.UTF-8
+cp /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
+
 sleep 10
 /usr/lib/i386-linux-gnu/wine/bin/wineserver -p
-wine ipconfig /all
+wine ipconfig > /dev/null
+
+echo
+uname -a
+lscpu
 
 
 
-
-echo "Press any key to exit..."
+log "Press any key to exit..."
 while true
 do 
   sleep 1.0; 
