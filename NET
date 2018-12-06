@@ -1,0 +1,66 @@
+#!/bin/bash
+
+#NET USE implementation for Wine
+
+#map cmd = NET USE
+#map cmd = NET USE X: //server/share
+#map cmd = NET USE //server/share
+#map cmd = NET USE X: //server/share pass /USER:user
+#map cmd = NET USE //server/share pass /USER:user
+#map cmd = NET USE /DELETE X:
+#map cmd = NET USE /DELETE //server/share
+
+echo 
+
+if [ "${1^^}" != "USE" ]; then
+  echo "Not implemented."
+  exit 1
+fi
+
+# --- LIST ---
+if [ "$#" -eq 1 ]; then
+  echo "List of network connections:"
+  mount | grep "/mnt/fbs"
+else
+# --- MAP ---
+  if [ "${2^^}" != "/DELETE" ]; then
+ 
+    if [ "${2:0:2}" == "//" ]; then
+      #unc path
+      local=$2
+      remote=$2
+      pass=$3
+      user=$4
+    else
+      #local drive letter
+      local=$2
+      remote=$3
+      pass=$4
+      user=$5
+    fi
+    local=${local////_}
+    local=${local,,}
+    user=${user:6} #remove /USER:	prefix
+  
+    mkdir -p /mnt/fbs/$local
+    mount -t cifs $remote /mnt/fbs/$local -o username=$user,password=$pass
+    ln -s /mnt/fbs/$local /root/.wine/dosdevices/$local
+  else
+# --- UNMAP ---
+    local=$3
+    local=${local////_}
+    local=${local,,}
+    rm /root/.wine/dosdevices/$local
+    umount -l /mnt/fbs/$local 
+    rmdir /mnt/fbs/$local
+  fi
+fi
+
+if [ $? -eq 0 ]; then
+  echo "The command completed successfully."
+fi
+  
+echo
+
+
+
