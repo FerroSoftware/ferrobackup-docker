@@ -14,12 +14,25 @@ function finalize() {
   exit
 }
 
-function startX() {
+function startNTServices() {
   log "Starting Xvfb..."
-  rm -f /tmp/.X0-lock
-  Xvfb :0 -screen 0 1024x768x16 &
-  sleep 2
-  export DISPLAY=:0.0
+  rm -f /tmp/.X88-lock
+  rm -f /tmp/.X11-unix/X88
+  Xvfb :88 -screen 0 1024x768x16 &
+  timeout=30
+  while [ ! -e /tmp/.X11-unix/X88 ] || [ ! -e /tmp/.X88-lock ]; do
+    sleep 0.1
+    timeout=$(( timeout - 1 ))
+    if [ "$timeout" -eq "0" ]; then
+        log "Error: Xvfb not available."
+        exit 1
+    fi
+  done
+  sleep 1
+  export DISPLAY=:88.0
+
+  log "Starting NT services ($COMPONENTS)..."
+  /usr/lib/wine/wineserver -p
 }
 
 function isHttpServerAlive() {
@@ -71,18 +84,26 @@ function install() {
 
   log "$INSTTEXT..."
   
-  chmod -R 777 /fbs
-  if [ ! $? -eq 0 ];then
-     log "Access denied."
+  log "Verifing installation path..."
+  rootDirProtect="/fbs/root"
+  if [ -d "$rootDirProtect" ]; then
+     echo "Parameter -v /:/fbs of docker run command is invalid. Installation in root folder is prohibited."
      exit 1
   fi
-  
+  chmod -R 777 /fbs || exit
 
   log "Downloading installer..."
-  cd /tmp && wget www.ferrobackup.com/download/Fbs5InstDocker.exe
+  cd /tmp && wget www.ferrobackup.com/download/Fbs5InstDocker.exe || exit
+
   log "Initializing Wine..."
   WINEDEBUG=-all wine ipconfig > /dev/null
-  startX
+
+  log "Preparing temp path..."
+  mkdir -p /fbs/tmp || exit
+  chmod -R 777 /fbs/tmp || exit
+  rm -rf /root/.wine/drive_c/users/root/Temp && ln -s /fbs/tmp /root/.wine/drive_c/users/root/Temp || exit
+
+  startNTServices
   log "FBS ($COMPONENTS) - $INSTTEXT..."
   rm -f -v /tmp/setup.log
   wine /tmp/$INSTFILE /SP- /verysilent /noicons /SUPPRESSMSGBOXES /LOG="Z:\tmp\setup.log" /COMPONENTS="$COMPONENTS" /dir="Z:$APPPATH"
@@ -112,32 +133,38 @@ fi
 
 log "################################"
 log "##### Ferro Backup System ######"
+log "#####---------------------######"
+log "##### docker container v5 ######"
 log "################################"
 
 log "Starting..."
+
+export LC_ALL=pl_PL.UTF-8
+export LANG=pl_PL.UTF-8
+cp /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
 
 
 if [ ! -f /tmp/$INSTFILE ] 
 then
   install
 else
-  startX
+# remove network connections from the previous session
+  rm -rf /mnt/fbs
+  dosdevs="/root/.wine/dosdevices"
+  find -L $dosdevs -name $dosdevs -o -type d -prune -o -type l -exec rm {} +
+  startNTServices
 fi
 
 
-log "Starting NT services ($COMPONENTS)..."
-
-
-export LC_ALL=pl_PL.UTF-8
-export LANG=pl_PL.UTF-8
-cp /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
-
-sleep 10
-/usr/lib/i386-linux-gnu/wine/bin/wineserver -p
-wine ipconfig > /dev/null
 
 echo
 uname -a
+echo --- NETWORK ---
+wine ipconfig /all
+echo --- DISKS ---
+lsblk
+echo
+echo --- CPU ---
 lscpu
 
 
@@ -145,7 +172,7 @@ lscpu
 log "Press any key to exit..."
 while true
 do 
-  sleep 1.0; 
+  sleep 5
   watchdog  
 done
 
