@@ -1,14 +1,15 @@
 #!/bin/bash
-
-#NET USE implementation for Wine
-
-#map cmd = NET USE
-#map cmd = NET USE X: //server/share
-#map cmd = NET USE //server/share
-#map cmd = NET USE X: //server/share pass /USER:user
-#map cmd = NET USE //server/share pass /USER:user
-#map cmd = NET USE /DELETE X:
-#map cmd = NET USE /DELETE //server/share
+# ************************************************************
+# NET USE implementation for Wine
+# ************************************************************
+# Usage:
+#list cmd = NET USE
+#map cmd  = NET USE X: //server/share
+#map cmd  = NET USE //server/share
+#map cmd  = NET USE X: //server/share pass /USER:user
+#map cmd  = NET USE //server/share pass /USER:user
+#del cmd  = NET USE X: /DELETE
+#del cmd  = NET USE //server/share /DELETE
 
 echo 
 
@@ -17,38 +18,48 @@ if [ "${1^^}" != "USE" ]; then
   exit 1
 fi
 
-# --- LIST ---
+# ************************ LIST ********************************
 if [ "$#" -eq 1 ]; then
+  echo "New connections will be remembered."
+  echo
   echo "List of network connections:"
+  echo "---------------------------------------------------"
   mount | grep "/mnt/fbs"
 else
-# --- MAP ---
-  if [ "${2^^}" != "/DELETE" ]; then
+# ************************ MAP  ********************************
+  if [ "${3^^}" != "/DELETE" ]; then
  
-    if [ "${2:0:2}" == "//" ]; then
-      #unc path
-      local=$2
+    if [ "${2:0:2}" == "//" ]; then #***unc path
+      isLetter=false      
+      local=${2:2}  #cut //
       remote=$2
       pass=$3
       user=$4
-    else
-      #local drive letter
+    else #***local drive letter 
+      isLetter=true
       local=$2
+      local2=local
       remote=$3
       pass=$4
       user=$5
     fi
-    local=${local////_}
+ 
     local=${local,,}
-    user=${user:6} #remove /USER:	prefix
+    user=${user:6} #remove /USER: prefix
   
     mkdir -p /mnt/fbs/$local
     mount -t cifs $remote /mnt/fbs/$local -o username=$user,password=$pass
+    if [ "$isLetter" = false ] ; then 
+      mkdir -p /root/.wine/dosdevices/$local  #create full path
+      rmdir /root/.wine/dosdevices/$local     #remove last dir
+    fi 
     ln -s /mnt/fbs/$local /root/.wine/dosdevices/$local
   else
-# --- UNMAP ---
-    local=$3
-    local=${local////_}
+# ************************ DELETE *******************************
+    local=$2
+    if [ "${local:0:2}" == "//" ]; then
+      local=${local:2}  #cut //
+    fi
     local=${local,,}
     rm /root/.wine/dosdevices/$local
     umount -l /mnt/fbs/$local 
