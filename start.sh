@@ -15,6 +15,17 @@ function finalize() {
 }
 
 function startNTServices() {
+  timeout=60
+  while pgrep -u root wineserver > /dev/null; do
+    sleep 0.1
+    timeout=$(( timeout - 1 ))
+    if [ "$timeout" -eq "0" ]; then
+        log "Error: Wineserver is running."
+        exit 1
+    fi
+  done
+
+
   log "Starting Xvfb..."
   rm -f /tmp/.X88-lock
   rm -f /tmp/.X11-unix/X88
@@ -32,7 +43,8 @@ function startNTServices() {
   export DISPLAY=:88.0
 
   log "Starting NT services ($COMPONENTS)..."
-  /usr/lib/wine/wineserver -p
+  #/usr/bin/wineserver -p
+  /usr/lib/i386-linux-gnu/wine/bin/wineserver -p
 }
 
 function isHttpServerAlive() {
@@ -83,6 +95,9 @@ function install() {
    
 
   log "$INSTTEXT..."
+
+ # export WINEARCH=win32
+ 
   
   log "Verifing installation path..."
   rootDirProtect="/fbs/root"
@@ -96,7 +111,7 @@ function install() {
   cd /tmp && wget www.ferrobackup.com/download/Fbs5InstDocker.exe || exit
 
   log "Initializing Wine..."
-  WINEDEBUG=-all wine ipconfig > /dev/null
+  wine wineboot > /dev/null 2>&1
 
   log "Preparing temp path..."
   mkdir -p /fbs/tmp || exit
@@ -105,13 +120,15 @@ function install() {
 
   startNTServices
   log "FBS ($COMPONENTS) - $INSTTEXT..."
-  rm -f -v /tmp/setup.log
-  wine /tmp/$INSTFILE /SP- /verysilent /noicons /SUPPRESSMSGBOXES /LOG="Z:\tmp\setup.log" /COMPONENTS="$COMPONENTS" /dir="Z:$APPPATH"
+  log "Please wait as this can take a few minutes..."
+
+  rm -f /fbs/tmp/setup.log
+  wine /tmp/$INSTFILE /SP- /verysilent /noicons /SUPPRESSMSGBOXES /LOG="Z:\fbs\tmp\setup.log" /COMPONENTS="$COMPONENTS" /dir="Z:$APPPATH" > /fbs/tmp/setup2.log
 
   INSTOUT=$?
   if [ ! $INSTOUT -eq 0 ];then
      log "Setup failed to initialize. Error: $INSTOUT"
-     cat /tmp/setup.log
+     cat /fbs/tmp/setup.log
      exit 1
   fi
 
@@ -139,6 +156,7 @@ log "################################"
 
 log "Starting..."
 
+
 export LC_ALL=pl_PL.UTF-8
 export LANG=pl_PL.UTF-8
 cp /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
@@ -158,7 +176,9 @@ fi
 
 
 echo
+echo --- SYSTEM ---
 uname -a
+echo
 echo --- NETWORK ---
 wine ipconfig /all
 echo --- DISKS ---
@@ -166,6 +186,13 @@ lsblk
 echo
 echo --- CPU ---
 lscpu
+
+ip link add dummy88 type dummy > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+  log "Warning! The container is not running in the privileged mode. Network drives may be unavailable."
+else
+  ip link delete dummy88 > /dev/null 2>&1
+fi
 
 
 
@@ -175,4 +202,3 @@ do
   sleep 5
   watchdog  
 done
-
