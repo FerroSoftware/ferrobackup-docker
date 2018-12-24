@@ -49,6 +49,11 @@ else
   
     mkdir -p /mnt/fbs/$local
     mount -t cifs $remote /mnt/fbs/$local -o username=$user,password=$pass
+    if [ $? -ne 0 ]; then
+      rmdir /mnt/fbs/$local
+      echo "The container has to be run in the privileged mode."
+      exit 5
+    fi
     if [ "$isLetter" = false ] ; then 
       mkdir -p /root/.wine/dosdevices/$local  #create full path
       rmdir /root/.wine/dosdevices/$local     #remove last dir
@@ -72,6 +77,5 @@ if [ $? -eq 0 ]; then
 fi
   
 echo
-
 
 
