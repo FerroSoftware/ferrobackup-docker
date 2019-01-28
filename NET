@@ -48,7 +48,8 @@ else
     user=${user:6} #remove /USER: prefix
   
     mkdir -p /mnt/fbs/$local
-    mount -t cifs $remote /mnt/fbs/$local -o username=$user,password=$pass
+    #first mount = synology fix
+    mount -t cifs $remote /mnt/fbs/$local -o vers=syno,username=$user,password=$pass >/dev/null 2>&1 || mount -t cifs $remote /mnt/fbs/$local -o username=$user,password=$pass
     if [ $? -ne 0 ]; then
       rmdir /mnt/fbs/$local
       echo "The container has to be run in the privileged mode."
