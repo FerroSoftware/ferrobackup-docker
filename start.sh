@@ -169,7 +169,10 @@ else
 # remove network connections from the previous session
   rm -rf /mnt/fbs
   dosdevs="/root/.wine/dosdevices"
-  find -L $dosdevs -name $dosdevs -o -type d -prune -o -type l -exec rm {} +
+  for value in {a..b} {d..y}
+  do
+    rm -f $dosdevs$value:
+  done
   startNTServices
 fi
 
