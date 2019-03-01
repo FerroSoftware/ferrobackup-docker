@@ -8,6 +8,7 @@ function log() {
 function finalize() {
   log "Shutting down FBS ($COMPONENTS)..."
   if [ "$ISSERVER" = true ] ; then 
+    ISSERVER=false
     wine $APPPATH/FBSServer.exe -stop
   fi 
   log "Done."
@@ -202,6 +203,6 @@ fi
 log "Press any key to exit..."
 while true
 do 
-  sleep 5
+  sleep 8
   watchdog  
 done
