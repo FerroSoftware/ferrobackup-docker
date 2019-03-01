@@ -1,0 +1,2 @@
+#!/bin/bash
+readlink -n "$1" > $2
